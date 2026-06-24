@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 输出文件
+output/*
+!output/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 大音频文件
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.ogg

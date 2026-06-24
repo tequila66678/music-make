@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跑操音乐编排器</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg-radial: radial-gradient(ellipse at 50% 0%, #1a1a0f 0%, #0a0a0a 60%);
+    --gold: #d4a843;
+    --gold-light: #e8c96a;
+    --gold-dark: #b8942e;
+    --gold-glow: rgba(212,168,67,0.15);
+    --gold-glow-strong: rgba(212,168,67,0.3);
+    --surface: rgba(24,24,22,0.8);
+    --surface-alt: rgba(18,18,16,0.7);
+    --text: #e8e4dc;
+    --text-secondary: #9d988c;
+    --text-tertiary: #6b6760;
+    --red: #e0554a;
+    --red-glow: rgba(224,85,74,0.15);
+    --green: #5bae6e;
+    --green-glow: rgba(91,174,110,0.15);
+    --purple: #b38fd4;
+    --purple-glow: rgba(179,143,212,0.15);
+    --border: rgba(212,168,67,0.12);
+    --border-strong: rgba(212,168,67,0.25);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 1px var(--border);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.5), 0 0 2px var(--border);
+    --radius-sm: 12px;
+    --radius: 20px;
+    --radius-lg: 24px;
+    --glass: rgba(24,24,22,0.8);
+    --glass-hover: rgba(30,30,26,0.85);
+    --blur: 20px;
+    --transition: 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    background-image: var(--bg-radial);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Subtle bg texture ────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(212,168,67,0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 60%, rgba(212,168,67,0.02) 0%, transparent 40%);
+    filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    animation: bgBreathe 12s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Hero ─────────────────────── */
+  .hero {
+    text-align: center;
+    padding: 72px 20px 48px;
+    max-width: 720px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .hero h1 {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e8c96a 0%, #d4a843 30%, #b8942e 60%, #e8c96a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 2px 12px rgba(212,168,67,0.3));
+    background-size: 200% auto;
+    animation: shimmer 6s linear infinite;
+  }
+  .hero .subtitle {
+    margin-top: 14px;
+    font-size: 18px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    animation: fadeUp 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Toolbar ──────────────────── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .toolbar .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+  }
+  .spacer { flex: 1; }
+
+  /* ── Buttons ──────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 980px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: -0.01em;
+    transition: all var(--transition);
+    white-space: nowrap;
+    backdrop-filter: blur(var(--blur));
+  }
+  .btn-outline {
+    background: rgba(24,24,22,0.5);
+    border: 1px solid var(--border);
+    color: var(--gold);
+  }
+  .btn-outline:hover {
+    background: rgba(212,168,67,0.12);
+    border-color: var(--gold);
+    color: var(--gold-light);
+    box-shadow: 0 0 16px var(--gold-glow);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #d4a843, #b8942e);
+    color: #0a0a0a;
+    font-size: 17px;
+    padding: 14px 38px;
+    font-weight: 600;
+    box-shadow: 0 4px 24px var(--gold-glow-strong);
+    letter-spacing: 0.01em;
+    position: relative;
+    overflow: hidden;
+    animation: btnPulse 3s ease-in-out infinite;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 50%; height: 100%;
+    background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.35) 50%, transparent 80%);
+    animation: barShimmer 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #e0bc5a, #c9a438);
+    box-shadow: 0 6px 32px rgba(212,168,67,0.45);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+  .btn-danger {
+    background: rgba(224,85,74,0.12);
+    border: 1px solid rgba(224,85,74,0.2);
+    color: var(--red);
+  }
+  .btn-danger:hover {
+    background: rgba(224,85,74,0.2);
+    box-shadow: 0 0 16px var(--red-glow);
+  }
+  .btn-add {
+    width: 100%;
+    padding: 18px;
+    background: rgba(24,24,22,0.4);
+    backdrop-filter: blur(var(--blur));
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--gold);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    transition: all var(--transition);
+  }
+  .btn-add {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-add::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 50%; height: 100%;
+    background: linear-gradient(105deg, transparent 20%, rgba(212,168,67,0.12) 50%, transparent 80%);
+    animation: barShimmer 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .btn-add:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 0 24px var(--gold-glow);
+  }
+
+  /* ── Segment Card ─────────────── */
+  .seg-block {
+    background: var(--glass);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: all var(--transition);
+    border: 1px solid var(--border);
+    transition: all var(--transition), transform 0.25s cubic-bezier(0.22,1,0.36,1);
+  }
+  .seg-block:hover {
+    box-shadow: var(--shadow);
+    border-color: var(--border-strong);
+    background: var(--glass-hover);
+    transform: scale(1.004);
+  }
+  .seg-card { padding: 20px 24px; }
+  .seg-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .seg-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    background: rgba(212,168,67,0.1);
+    border: 1px solid rgba(212,168,67,0.2);
+    transition: all var(--transition);
+  }
+  .seg-icon.blue { background: rgba(212,168,67,0.1); border-color: rgba(212,168,67,0.2); }
+  .seg-icon.green { background: rgba(91,174,110,0.1); border-color: rgba(91,174,110,0.2); }
+  .seg-icon.orange { background: rgba(212,168,67,0.12); border-color: rgba(212,168,67,0.25); }
+  .seg-icon.purple { background: rgba(179,143,212,0.1); border-color: rgba(179,143,212,0.2); }
+  .seg-header input[type=text] {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    padding: 4px 0;
+    outline: none;
+    border-bottom: 2px solid transparent;
+    transition: border-color var(--transition);
+  }
+  .seg-header input[type=text]:focus {
+    border-bottom-color: var(--gold);
+  }
+  .seg-body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .seg-body .field { display: flex; align-items: center; gap: 6px; }
+  .seg-body .field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .seg-body input[type=number] {
+    width: 76px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+    background: var(--surface-alt);
+    color: var(--text);
+    outline: none;
+    transition: all var(--transition);
+    backdrop-filter: blur(var(--blur));
+    font-variant-numeric: tabular-nums;
+  }
+  .seg-body input[type=number]:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+    background: rgba(24,24,22,0.9);
+  }
+  .seg-body .time-group input { width: 56px; }
+  .seg-body .time-group span { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+  /* Upload zone */
+  .seg-upload {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    font-size: 14px;
+    color: var(--text-secondary);
+    position: relative;
+    background: var(--surface-alt);
+  }
+  .seg-upload:hover, .seg-upload.dragover {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.06);
+    color: var(--gold);
+  }
+  .seg-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .seg-upload b { color: var(--gold-light); }
+
+  /* Tracks */
+  .seg-tracks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 24px; }
+  .seg-tracks .tag {
+    background: rgba(24,24,22,0.6);
+    backdrop-filter: blur(var(--blur));
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 980px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+  .seg-tracks .tag small { color: var(--gold); font-weight: 400; }
+  .seg-tracks .tag .del {
+    cursor: pointer;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    transition: color var(--transition);
+  }
+  .seg-tracks .tag .del:hover { color: var(--red); }
+  .seg-tracks .empty { font-size: 13px; color: var(--text-tertiary); font-style: italic; }
+
+  /* ── Transition Card ──────────── */
+  .trans-card {
+    margin: 0 20px 12px 48px;
+    padding: 16px 20px;
+    background: rgba(24,24,22,0.5);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    transition: all var(--transition), transform 0.25s cubic-bezier(0.22,1,0.36,1);
+  }
+  .trans-card:hover {
+    transform: scale(1.003);
+    box-shadow: var(--shadow);
+    border-color: var(--border-strong);
+  }
+  .trans-card::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 50%;
+    width: 28px;
+    height: 1.5px;
+    background: var(--border-strong);
+  }
+  .trans-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .trans-header .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow-strong);
+  }
+  .trans-card textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 38px;
+    background: rgba(18,18,16,0.7);
+    color: var(--text);
+    outline: none;
+    transition: all var(--transition);
+    letter-spacing: -0.01em;
+    backdrop-filter: blur(var(--blur));
+  }
+  .trans-card textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+    background: rgba(24,24,22,0.9);
+  }
+  .trans-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .trans-status { font-size: 12px; color: var(--text-secondary); }
+  .trans-uploaded {
+    font-size: 12px;
+    color: var(--green);
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  .trans-uploaded button {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .trans-card input[type=file] { display: none; }
+  .trans-controls { margin: 10px 0; }
+  .trans-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .trans-row label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    min-width: 50px;
+  }
+  .trans-row input[type=range] {
+    flex: 1;
+    max-width: 160px;
+    min-width: 100px;
+    height: 5px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(212,168,67,0.2);
+    border-radius: 2px;
+    outline: none;
+  }
+  .trans-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #0a0a0a;
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--gold-glow-strong);
+  }
+  .trans-val { font-size: 12px; color: var(--gold); min-width: 35px; font-weight: 500; }
+
+  /* ── Slider ───────────────────── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .slider-row input[type=range] {
+    flex: 1;
+    max-width: 400px;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(212,168,67,0.2);
+    border-radius: 2px;
+    outline: none;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0a0a0a;
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    box-shadow: 0 0 12px var(--gold-glow-strong);
+    transition: all var(--transition);
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(212,168,67,0.5);
+  }
+  .slider-row .val { font-weight: 600; color: var(--gold); min-width: 40px; }
+
+  /* ── Status ───────────────────── */
+  .status-badge {
+    text-align: center;
+    padding: 18px 28px;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 15px;
+    margin-bottom: 20px;
+    letter-spacing: -0.01em;
+    backdrop-filter: blur(var(--blur));
+    line-height: 1.6;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-badge::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 150%; height: 300%;
+    background: conic-gradient(from 0deg, transparent 0%, rgba(212,168,67,0.25) 8%, transparent 16%, transparent 100%);
+    animation: rotateBorder 5s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .status-badge > * { position: relative; z-index: 1; }
+  .status-badge.info {
+    background: rgba(212,168,67,0.1);
+    border: 1px solid rgba(212,168,67,0.2);
+    color: var(--gold-light);
+  }
+  .status-badge.ok {
+    background: rgba(91,174,110,0.1);
+    border: 1px solid rgba(91,174,110,0.2);
+    color: var(--green);
+  }
+  .status-badge.err {
+    background: rgba(224,85,74,0.1);
+    border: 1px solid rgba(224,85,74,0.2);
+    color: var(--red);
+  }
+
+  /* ── Actions Card ─────────────── */
+  .actions-card {
+    background: var(--glass);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 32px;
+    text-align: center;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .actions-card::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 120%; height: 250%;
+    background: conic-gradient(from 0deg, transparent 0%, rgba(212,168,67,0.1) 8%, transparent 16%, transparent 100%);
+    animation: rotateBorder 10s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .actions-card > * { position: relative; z-index: 1; }
+
+  /* ── Progress ─────────────────── */
+  .progress-wrap { display: none; margin-bottom: 20px; }
+  .progress-bar {
+    height: 8px;
+    background: rgba(212,168,67,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, #b8942e, #e8c96a, #d4a843);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+    box-shadow: 0 0 16px var(--gold-glow-strong);
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-bar .fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+    animation: barShimmer 1.8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .progress-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+  .progress-steps .step {
+    flex: 1;
+    text-align: center;
+    transition: color 0.4s;
+  }
+  .progress-steps .step.done { color: var(--gold-light); }
+  .progress-steps .step.active { color: var(--gold); font-weight: 600; }
+  .progress-text { font-size: 14px; color: var(--gold-light); font-weight: 500; text-align: center; }
+
+  /* ── Result ───────────────────── */
+  .result-area { margin-top: 20px; display: none; }
+  .result-area.show { display: block; }
+  .result-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: rgba(24,24,22,0.5);
+    backdrop-filter: blur(var(--blur));
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .result-card .filename { font-weight: 600; flex: 1; font-size: 15px; color: var(--gold-light); }
+  .result-card audio { height: 38px; width: 260px; border-radius: 8px; }
+  .result-card a { font-size: 14px; font-weight: 500; text-decoration: none; }
+
+  /* ── Footer ───────────────────── */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Scrollbar ────────────────── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(212,168,67,0.2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,168,67,0.4); }
+
+  /* ── Toast ─────────────────────── */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto;
+    padding: 14px 20px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    animation: toastIn 0.35s cubic-bezier(0.25, 0.1, 0.25, 1), toastOut 0.3s ease 2.7s forwards;
+    max-width: 400px;
+    letter-spacing: -0.01em;
+    border: 1px solid;
+  }
+  .toast.success {
+    background: rgba(16,28,16,0.92);
+    border-color: rgba(91,174,110,0.35);
+    color: #8fd89a;
+  }
+  .toast.error {
+    background: rgba(32,16,16,0.92);
+    border-color: rgba(224,85,74,0.35);
+    color: #f0908a;
+  }
+  .toast.info {
+    background: rgba(24,24,16,0.92);
+    border-color: rgba(212,168,67,0.35);
+    color: var(--gold-light);
+  }
+  @keyframes toastIn { from { opacity:0; transform:translateX(60px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-10px); } }
+
+  /* ── Premium animations ────────── */
+  @keyframes cardEntr {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+  @keyframes barShimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes rotateBorder {
+    0%   { transform: translate(-50%,-50%) rotate(0deg); }
+    100% { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+  @keyframes btnPulse {
+    0%,100% { box-shadow: 0 4px 24px var(--gold-glow-strong), 0 0 0 0 rgba(212,168,67,0.4); }
+    50%     { box-shadow: 0 4px 24px var(--gold-glow-strong), 0 0 0 12px rgba(212,168,67,0); }
+  }
+  @keyframes bgBreathe {
+    0%,100% { opacity: 0.5; transform: scale(1); }
+    50%     { opacity: 1;   transform: scale(1.08); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .entr { opacity: 0; animation: cardEntr 0.55s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .fade-up { animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
+
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 34px; }
+    .seg-body { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .seg-header { flex-wrap: wrap; }
+    .trans-card { margin-left: 24px; margin-right: 8px; }
+    .result-card { flex-direction: column; align-items: flex-start; }
+    .result-card audio { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── Toast Container ────────────── -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ─── Hero ──────────────────────── -->
+<div class="hero">
+  <h1>跑操音乐编排器</h1>
+  <p class="subtitle">智能 BPM 检测 · 变速匹配 · 段间过渡语 · 一键导出</p>
+</div>
+
+<div class="container">
+
+<!-- ─── Toolbar ───────────────────── -->
+<div class="toolbar">
+  <span class="section-label">段落与过渡语</span>
+  <span class="spacer"></span>
+  <button class="btn btn-outline btn-sm" onclick="applyPreset('standard')">标准模板</button>
+  <button class="btn btn-outline btn-sm" onclick="applyPreset('quick')">快速模板</button>
+</div>
+
+<!-- ─── Dynamic Segments ──────────── -->
+<div id="segments-container"></div>
+
+<button class="btn btn-add" onclick="addSegment()">
+  <span style="font-size:20px;">+</span> 添加段落
+</button>
+
+<!-- ─── Fade Slider ───────────────── -->
+<div class="slider-row">
+  <span>交叉淡入淡出</span>
+  <input type="range" id="fade-slider" min="0" max="5" step="0.5" value="2" oninput="document.getElementById('fade-val').textContent = this.value + ' 秒'">
+  <span class="val" id="fade-val">2.0 秒</span>
+</div>
+
+<!-- ─── Generate ──────────────────── -->
+<div class="actions-card" style="margin-top: 24px;">
+  <div id="status-area"></div>
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-steps" id="progress-steps"></div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+    <span class="progress-text" id="progress-text">准备中...</span>
+  </div>
+  <button class="btn btn-primary" id="generate-btn" onclick="generate()">生成编排</button>
+  <div class="result-area" id="result-area"></div>
+</div>
+
+<p class="footer">Running Music Arranger &nbsp;·&nbsp; Built for Schools</p>
+
+</div>
+
+<script>
+// ═════════════════════════════════════════
+//  STATE
+// ═════════════════════════════════════════
+const API = '';
+const ICONS = [
+  { emoji:'🚶', cls:'blue' }, { emoji:'🏃', cls:'orange' },
+  { emoji:'🧘', cls:'purple' }, { emoji:'🚪', cls:'blue' },
+  { emoji:'🎵', cls:'green' }, { emoji:'🏋️', cls:'orange' },
+  { emoji:'💪', cls:'blue' }, { emoji:'🎯', cls:'green' },
+  { emoji:'🔥', cls:'orange' }, { emoji:'🎶', cls:'purple' },
+];
+const PRESETS = {
+  standard: {
+    segs: [
+      { label:'入场', bpm:120, min:3, sec:0, icon:{emoji:'🚶',cls:'blue'} },
+      { label:'跑操', bpm:140, min:22, sec:0, icon:{emoji:'🏃',cls:'orange'} },
+      { label:'放松', bpm:100, min:3, sec:0, icon:{emoji:'🧘',cls:'purple'} },
+      { label:'退场', bpm:120, min:2, sec:0, icon:{emoji:'🚪',cls:'blue'} },
+    ],
+    trans: [
+      '全体立正，向前看齐，向前看。下面我们进行跑操，请注意班级间距，全体注意，跑步走！',
+      '跑步结束，各班原地踏步，调整呼吸。下面进行放松活动。',
+      '放松活动结束，请各班有序退场，注意脚下安全。',
+    ]
+  },
+  quick: {
+    segs: [
+      { label:'入场', bpm:0, min:2, sec:0, icon:{emoji:'🚶',cls:'blue'} },
+      { label:'跑操', bpm:0, min:15, sec:0, icon:{emoji:'🏃',cls:'orange'} },
+      { label:'放松', bpm:0, min:2, sec:0, icon:{emoji:'🧘',cls:'purple'} },
+      { label:'退场', bpm:0, min:1, sec:0, icon:{emoji:'🚪',cls:'blue'} },
+    ],
+    trans: [
+      '全体立正，向前看齐，跑步走！',
+      '跑步结束，下面进行放松活动。',
+      '放松结束，请各班有序退场。',
+    ]
+  }
+};
+
+let segments = JSON.parse(JSON.stringify(PRESETS.standard.segs));
+segments.forEach(s => s.tracks = []);
+let transTexts = [...PRESETS.standard.trans];
+let transAudioPaths = [];
+let transVoices = [];          // 每个过渡语的音色选择
+let transSentenceGaps = [];    // 句间停顿（秒）
+let transLeadSilences = [];    // 前导静音（秒）
+let transTailSilences = [];    // 尾随静音（秒）
+let transVolumes = [];            // 过渡语音量（倍率，1.0=原始）
+let voiceOptions = {};         // {id: label} 从服务器加载
+let segUploadCounters = segments.map(() => 0);
+
+// 初始化过渡语参数
+function initTransDefaults() {
+  while (transVoices.length < segments.length - 1) transVoices.push('zh-CN-YunjianNeural');
+  while (transSentenceGaps.length < segments.length - 1) transSentenceGaps.push(0.5);
+  while (transLeadSilences.length < segments.length - 1) transLeadSilences.push(0.0);
+  while (transTailSilences.length < segments.length - 1) transTailSilences.push(1.0);
+    while (transVolumes.length < segments.length - 1) transVolumes.push(1.0);
+}
+initTransDefaults();
+
+// ═════════════════════════════════════════
+//  RENDER
+// ═════════════════════════════════════════
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderAll() {
+  let html = '';
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i], sid = `seg-${i}`, ic = s.icon || { emoji:'🎵', cls:'blue' };
+    html += `<div class="seg-block"><div class="seg-card">`;
+    html += `<div class="seg-header">`;
+    html += `<div class="seg-icon ${ic.cls}">${ic.emoji}</div>`;
+    html += `<input type="text" id="${sid}-label" value="${esc(s.label)}" placeholder="段落名称" onchange="onLabelChange(${i}, this.value)">`;
+    html += `<button class="btn btn-sm btn-outline" onclick="pickIcon(${i})">换图标</button>`;
+    if (segments.length > 1) html += `<button class="btn btn-sm btn-danger" onclick="deleteSegment(${i})">删除</button>`;
+    html += `</div>`;
+    html += `<div class="seg-body">`;
+    html += `<div class="field"><label>BPM</label><input type="number" id="${sid}-bpm" value="${s.bpm}" min="0" max="300" step="1" oninput="segments[${i}].bpm=parseInt(this.value)||0" title="0=原速不拉伸"></div>`;
+    html += `<div class="field"><label>时长</label><span class="time-group">`;
+    html += `<input type="number" id="${sid}-min" value="${s.min}" min="0" max="60" step="1" oninput="segments[${i}].min=parseInt(this.value)||0"><span>分</span>`;
+    html += `<input type="number" id="${sid}-sec" value="${s.sec}" min="0" max="59" step="5" oninput="segments[${i}].sec=parseInt(this.value)||0"><span>秒</span></span></div>`;
+    html += `</div>`;
+    html += `<div class="seg-upload" id="${sid}-upload-zone">`;
+    html += s.tracks.length
+      ? `<span style="color:var(--gold-light);">📁 ${s.tracks.length} 首曲目已上传 — 拖拽或点击继续添加</span>`
+      : `拖拽或点击上传音乐到 <b>${esc(s.label)}</b>`;
+    html += `<input type="file" accept="audio/*" multiple data-seg="${i}" onchange="uploadSegFiles(${i}, this)"></div>`;
+    html += `<div class="seg-tracks" id="${sid}-tracks">`;
+    if (s.tracks.length) {
+      for (let j=0; j<s.tracks.length; j++) {
+        const t = s.tracks[j];
+        html += `<span class="tag">${esc(t.name)} <small>${t.bpm} BPM</small> <span class="del" onclick="removeTrack(${i},${j})">&times;</span></span>`;
+      }
+    } else { html += `<span class="empty">暂无曲目</span>`; }
+    html += `</div></div></div>`;
+
+	    if (i < segments.length - 1) {
+	      const tid = `trans-${i}`;
+	      const v = transVoices[i] || "zh-CN-YunjianNeural";
+	      const sg = transSentenceGaps[i] ?? 0.5;
+	      const ls = transLeadSilences[i] ?? 0.0;
+	      const vol = transVolumes[i] ?? 1.0;
+	      const ts = transTailSilences[i] ?? 1.0;
+	      let voiceOpts = "";
+	      for (const [vid, vname] of Object.entries(voiceOptions)) {
+	        voiceOpts += `<option value="${vid}" ${vid===v?"selected":""}>${vname}</option>`;
+	      }
+	      if (!voiceOpts) voiceOpts = `<option value="${v}">${v}</option>`;
+
+	      html += `<div class="trans-card" id="${tid}-card">`;
+	      html += `<div class="trans-header"><span class="dot"></span> 过渡语 ${i+1} &nbsp;·&nbsp; ${esc(segments[i].label)} → ${esc(segments[i+1].label)}</div>`;
+	      html += `<textarea id="${tid}-text" placeholder="输入过渡语文本，留空则跳过" oninput="transTexts[${i}]=this.value">${esc(transTexts[i]||"")}</textarea>`;
+	      html += `<div class="trans-controls">`;
+	      html += `<div class="trans-row"><label>音色</label><select id="${tid}-voice" onchange="transVoices[${i}]=this.value" style="background:rgba(18,18,16,0.8);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;font-family:inherit;">${voiceOpts}</select>`;
+	      html += `<label>句间停顿</label><input type="range" min="0" max="3" step="0.1" value="${sg}" oninput="transSentenceGaps[${i}]=parseFloat(this.value);document.getElementById('${tid}-sgap-val').textContent=this.value+' 秒'"><span class="trans-val" id="${tid}-sgap-val">${sg} 秒</span></div>`;
+	      html += `<div class="trans-row"><label>前静音</label><input type="range" min="0" max="2" step="0.1" value="${ls}" oninput="transLeadSilences[${i}]=parseFloat(this.value);document.getElementById('${tid}-lead-val').textContent=this.value+' 秒'"><span class="trans-val" id="${tid}-lead-val">${ls} 秒</span>`;
+	      html += `<label>后静音</label><input type="range" min="0" max="5" step="0.1" value="${ts}" oninput="transTailSilences[${i}]=parseFloat(this.value);document.getElementById('${tid}-tail-val').textContent=this.value+' 秒'"><span class="trans-val" id="${tid}-tail-val">${ts} 秒</span></div>`;
+	      html += `</div>`;
+	      html += `<div class="trans-row"><label>音量</label><input type="range" min="0.5" max="3.0" step="0.1" value="${vol}" oninput="transVolumes[${i}]=parseFloat(this.value);document.getElementById('${tid}-vol-val').textContent=this.value+'×'"><span class="trans-val" id="${tid}-vol-val">${vol}×</span></div>`;
+      html += `<div class="trans-actions">`;
+	      html += `<button class="btn btn-sm btn-outline" onclick="previewTTS(${i})">试听</button>`;
+	      html += `<button class="btn btn-sm btn-outline" onclick="document.getElementById('${tid}-file').click()">上传录音</button>`;
+	      html += `<input type="file" accept="audio/*" id="${tid}-file" onchange="uploadTransAudio(${i}, this)">`;
+	      html += `<span class="trans-uploaded" id="${tid}-uploaded"><span></span><button onclick="clearTransAudio(${i})">&times;</button></span>`;
+	      html += `<span class="trans-status" id="${tid}-status"></span>`;
+	      html += `</div></div>`;
+	    }
+  }
+  document.getElementById('segments-container').innerHTML = html;
+  for (let i=0; i<segments.length-1; i++) {
+    if (transAudioPaths[i]) {
+      const el = document.getElementById(`trans-${i}-uploaded`);
+      if (el) { el.style.display='flex'; el.querySelector('span').textContent=transAudioPaths[i].name||'已上传'; }
+    }
+  }
+  bindDragDrop();
+  if (typeof firstRender !== 'undefined' && firstRender) {
+    document.querySelectorAll('.seg-block,.trans-card,.actions-card').forEach(function(el,i){
+      el.classList.add('entr');
+      el.style.animationDelay = (i * 0.05) + 's';
+    });
+    firstRender = false;
+  }
+}
+
+function bindDragDrop() {
+  document.querySelectorAll('.seg-upload').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); uploadSegFiles(parseInt(zone.querySelector('input').dataset.seg), {files:e.dataTransfer.files}); });
+    zone.addEventListener('click', e => { if (e.target.tagName!=='INPUT') zone.querySelector('input').click(); });
+  });
+}
+
+function onLabelChange(idx, val) { segments[idx].label = val.trim() || segments[idx].label; renderAll(); }
+
+function pickIcon(idx) {
+  const cur = segments[idx].icon, curIdx = ICONS.findIndex(ic => ic.emoji===cur.emoji);
+  segments[idx].icon = {...ICONS[(curIdx+1)%ICONS.length]}; renderAll();
+}
+
+function addSegment() {
+  const used = new Set(segments.map(s=>s.icon.emoji));
+  const free = ICONS.find(ic=>!used.has(ic.emoji)) || ICONS[segments.length%ICONS.length];
+  segments.push({label:'新段落',bpm:120,min:1,sec:0,icon:{...free},tracks:[]});
+  transTexts.push(''); transAudioPaths.push(null);
+  transVoices.push('zh-CN-YunjianNeural'); transSentenceGaps.push(0.5);
+  transLeadSilences.push(0.0); transTailSilences.push(1.0); transVolumes.push(1.0);
+  segUploadCounters.push(0); renderAll();
+}
+
+function deleteSegment(idx) {
+  if (segments.length<=1) return;
+  segments.splice(idx,1); segUploadCounters.splice(idx,1);
+  // 同步 splice 过渡语相关数组（N段有N-1个过渡语）
+  const syncArr = (arr, def) => {
+    if (idx < arr.length) arr.splice(idx, 1);
+    else if (arr.length > 0) arr.pop();
+    while (arr.length > segments.length - 1) arr.pop();
+    while (arr.length < segments.length - 1) arr.push(def);
+  };
+  syncArr(transTexts, '');
+  syncArr(transAudioPaths, null);
+  syncArr(transVoices, 'zh-CN-YunjianNeural');
+  syncArr(transSentenceGaps, 0.5);
+  syncArr(transLeadSilences, 0.0);
+  syncArr(transTailSilences, 1.0);
+  syncArr(transVolumes, 1.0);
+  renderAll();
+}
+
+function applyPreset(name) {
+  const p=PRESETS[name];
+  segments=JSON.parse(JSON.stringify(p.segs)); segments.forEach(s=>s.tracks=[]);
+  transTexts=[...p.trans]; transAudioPaths=transTexts.map(()=>null);
+  transVoices=transTexts.map(()=>'zh-CN-YunjianNeural');
+  transSentenceGaps=transTexts.map(()=>0.5);
+  transLeadSilences=transTexts.map(()=>0.0);
+  transTailSilences=transTexts.map(()=>1.0); transVolumes=transTexts.map(()=>1.0);
+  segUploadCounters=segments.map(()=>0);
+  loadExistingMusic(); renderAll();
+  setStatus('info',`已应用「${name==='standard'?'标准模板':'快速模板'}」`);
+}
+
+// ═════════════════════════════════════════
+//  TOAST
+// ═════════════════════════════════════════
+function showToast(msg, type='info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { if(el.parentNode) el.remove(); }, 3100);
+}
+
+// ═════════════════════════════════════════
+//  UPLOAD
+// ═════════════════════════════════════════
+async function uploadSegFiles(idx, input) {
+  const files = input.files || (input&&input.length?input:null);
+  if(!files||!files.length)return;
+  const fd=new FormData(); fd.append('phase',segments[idx].label);
+  let n=0; for(const f of files){if(f.type.startsWith('audio/')||f.name.match(/\.(mp3|wav|flac|m4a|ogg)$/i)){fd.append('files',f);n++;}}
+  if(!n)return;
+  // 显示上传中
+  const zone = document.getElementById(`seg-${idx}-upload-zone`);
+  const origHTML = zone ? zone.innerHTML : '';
+  if(zone) zone.innerHTML = `<span style="color:var(--gold);">⏳ 正在上传 ${n} 个文件并分析 BPM...</span>`;
+  setStatus('info',`正在上传 ${n} 个文件到「${segments[idx].label}」并分析 BPM...`);
+  try{
+    const r=await fetch(API+'/upload',{method:'POST',body:fd}),d=await r.json();
+    if(d.error){
+      showToast(`上传失败: ${d.error}`, 'error');
+      setStatus('err',d.error);
+      if(zone) zone.innerHTML = origHTML;
+      if(input&&input.tagName==='INPUT')input.value='';
+      return;
+    }
+    for(const t of d.tracks) segments[idx].tracks.push(t);
+    segUploadCounters[idx]+=d.tracks.length;
+    // 自动设置 BPM 为上传曲目的平均 BPM
+    const avgBpm = Math.round(d.tracks.reduce((s,t)=>s+(t.bpm||0),0) / d.tracks.length);
+    if (avgBpm > 0) segments[idx].bpm = avgBpm;
+    const names = d.tracks.map(t=>t.name).join(', ');
+    showToast(`✅ 已上传 ${d.tracks.length} 首到「${segments[idx].label}」 (${avgBpm}BPM): ${names}`, 'success');
+    setStatus('ok',`已添加 ${d.tracks.length} 首到「${segments[idx].label}」`);
+    renderAll();
+  }catch(e){
+    showToast(`上传失败: ${e.message}`, 'error');
+    setStatus('err','上传失败: '+e.message);
+    if(zone) zone.innerHTML = origHTML;
+  }
+  if(input&&input.tagName==='INPUT')input.value='';
+}
+
+function removeTrack(si,ti){const t=segments[si].tracks[ti];segments[si].tracks.splice(ti,1);fetch(API+'/api/music/'+encodeURIComponent(segments[si].label)+'/'+encodeURIComponent(t.filename),{method:'DELETE'}).catch(()=>{});renderAll();}
+
+async function loadExistingMusic(){
+  try{
+    const r=await fetch(API+'/api/music'),d=await r.json();
+    if(d.tracks){for(const[phase,tl]of Object.entries(d.tracks)){if(!tl.length)continue;const seg=segments.find(s=>s.label===phase);if(seg){const ex=new Set(seg.tracks.map(t=>t.filename));for(const t of tl)if(!ex.has(t.filename))seg.tracks.push(t);}}renderAll();}
+  }catch(e){}
+}
+
+async function loadVoices(){
+  try{
+    const r=await fetch(API+'/api/tts/voices'),d=await r.json();
+    if(d.voices){voiceOptions=d.voices;renderAll();}
+  }catch(e){}
+}
+
+// ═════════════════════════════════════════
+//  TTS
+// ═════════════════════════════════════════
+async function previewTTS(idx){
+  const el=document.getElementById(`trans-${idx}-text`);if(!el)return;
+  const t=el.value.trim();if(!t){setStatus('err','请先输入过渡语文本');return;}
+  // 读取当前音色和停顿参数
+  const voice = transVoices[idx] || 'zh-CN-YunjianNeural';
+  const sg = transSentenceGaps[idx] ?? 0.5;
+  const ls = transLeadSilences[idx] ?? 0.0;
+  const vol = transVolumes[idx] ?? 1.0;
+  const ts = transTailSilences[idx] ?? 1.0;
+  const st=document.getElementById(`trans-${idx}-status`);if(st)st.textContent='正在合成...';
+  setStatus('info','正在生成 TTS 预览...');
+  try{
+    const r=await fetch(API+'/api/tts/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t, voice, sentence_gap:sg, lead_silence:ls, tail_silence:ts, volume:vol})});
+    if(!r.ok){const e=await r.json();throw new Error(e.error||'TTS失败');}
+    new Audio(URL.createObjectURL(await r.blob())).play();
+    if(st)st.textContent='播放中...'; setStatus('ok','TTS 预览播放中');
+  }catch(e){if(st)st.textContent='失败';setStatus('err','TTS 预览失败: '+e.message);}
+}
+
+async function uploadTransAudio(idx,input){
+  const f=input.files[0];if(!f)return;
+  const fd=new FormData();fd.append('file',f);
+  const st=document.getElementById(`trans-${idx}-status`);if(st)st.textContent='上传中...';
+  try{
+    const r=await fetch(API+'/api/tts/upload',{method:'POST',body:fd}),d=await r.json();
+    if(d.error)throw new Error(d.error);
+    transAudioPaths[idx]={path:d.path,name:d.filename};setStatus('ok','过渡语音已上传');renderAll();
+  }catch(e){if(st)st.textContent='失败';setStatus('err','上传失败: '+e.message);}
+  input.value='';
+}
+function clearTransAudio(idx){transAudioPaths[idx]=null;renderAll();}
+
+// ═════════════════════════════════════════
+//  GENERATE
+// ═════════════════════════════════════════
+function setStatus(type,msg){
+  const m={info:'',ok:'✅ ',err:'⚠️ '};
+  document.getElementById('status-area').innerHTML=`<div class="status-badge ${type}">${m[type]||''}${msg}</div>`;
+}
+
+async function generate(){
+  const fade_sec=parseFloat(document.getElementById('fade-slider').value);
+  const cfg={segments:[],transitions:[],fade_sec};
+  for(let i=0;i<segments.length;i++){
+    const s=segments[i],sid=`seg-${i}`;
+    const label=(document.getElementById(`${sid}-label`)?.value||s.label).trim();
+    const bpm=parseInt(document.getElementById(`${sid}-bpm`)?.value)||s.bpm;
+    const min=parseInt(document.getElementById(`${sid}-min`)?.value)||s.min;
+    const sec=parseInt(document.getElementById(`${sid}-sec`)?.value)||s.sec;
+    cfg.segments.push({label,target_bpm:bpm,duration:min*60+sec});
+  }
+  if(!cfg.segments.length){setStatus('err','请至少配置一个段落');return;}
+  for(let i=0;i<segments.length-1;i++){
+    const text=document.getElementById(`trans-${i}-text`)?.value?.trim()||transTexts[i]||'';
+    cfg.transitions.push({label:`${segments[i].label} → ${segments[i+1].label}`,text,audio_path:transAudioPaths[i]?.path||"",tts_voice:transVoices[i]||"zh-CN-YunjianNeural",sentence_gap:transSentenceGaps[i]??0.5,lead_silence:transLeadSilences[i]??0.0,volume:transVolumes[i]??1.0,tail_silence:transTailSilences[i]??1.0,});
+  }
+
+  const btn=document.getElementById('generate-btn');btn.disabled=true;btn.textContent='正在生成...';
+  document.getElementById('progress-wrap').style.display='block';document.getElementById('result-area').classList.remove('show');
+  document.getElementById('progress-fill').style.width='0%';document.getElementById('progress-text').textContent='准备中...';
+  setStatus('info','正在编排，请稍候...');
+
+  // 步骤动画：逐个段落 + 过渡语
+  const stepsEl = document.getElementById('progress-steps');
+  const totalSteps = cfg.segments.length + (cfg.transitions.filter(t=>t.text||t.audio_path).length);
+  let stepLabels = [];
+  for (let i = 0; i < cfg.segments.length; i++) {
+    stepLabels.push(cfg.segments[i].label);
+    if (i < cfg.transitions.length && (cfg.transitions[i].text || cfg.transitions[i].audio_path)) {
+      stepLabels.push('过渡');
+    }
+  }
+  stepsEl.innerHTML = stepLabels.map(l => `<span class="step">${l}</span>`).join('');
+
+  let animTimer, currentStep = 0;
+  const pctPerStep = 85 / Math.max(totalSteps, 1);
+  const tick = () => {
+    if (currentStep < totalSteps) {
+      const pct = Math.min(85, (currentStep + 1) * pctPerStep);
+      document.getElementById('progress-fill').style.width = pct + '%';
+      document.getElementById('progress-text').textContent = '正在处理: ' + stepLabels[currentStep];
+      // highlight current step
+      const steps = stepsEl.querySelectorAll('.step');
+      steps.forEach((s, j) => { s.className = 'step' + (j < currentStep ? ' done' : j === currentStep ? ' active' : ''); });
+      currentStep++;
+      animTimer = setTimeout(tick, 400);
+    }
+  };
+  tick();
+
+  try{
+    const r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    clearTimeout(animTimer);
+    // jump to 90% export phase
+    document.getElementById('progress-fill').style.width='90%';
+    document.getElementById('progress-text').textContent='正在合成过渡语并导出...';
+    const steps = stepsEl.querySelectorAll('.step');
+    steps.forEach(s => s.className = 'step done');
+
+    const d=await r.json();
+    if(d.error){setStatus('err',d.error);resetBtn();showToast('生成失败: '+d.error,'error');return;}
+    document.getElementById('progress-fill').style.width='100%';
+    document.getElementById('progress-text').textContent='✅ 完成';
+    stepsEl.innerHTML = '';
+    setTimeout(()=>{document.getElementById('progress-wrap').style.display='none';document.getElementById('progress-fill').style.width='0%';},1500);
+    const segList = cfg.segments.map(s => s.label + ' ' + Math.floor(s.duration/60)+'′'+Math.round(s.duration%60)+'″').join(' · ');
+    const ti=d.transitions?.length?`<br><span style="color:var(--text-secondary);font-size:13px;">含 ${d.transitions.length} 段过渡语</span>`:'';
+    setStatus('ok',`生成成功！总时长 ${Math.floor(d.duration/60)} 分 ${Math.round(d.duration%60)} 秒${ti}<br><span style="font-size:12px;color:var(--text-tertiary);">${segList}</span>`);
+    showToast(`✅ 生成成功！总时长 ${Math.floor(d.duration/60)} 分 ${Math.round(d.duration%60)} 秒`,'success');
+    const ra=document.getElementById('result-area');ra.classList.add('show');
+    ra.innerHTML=`<div class="result-card"><span class="filename">${d.filename}</span><audio controls src="${API}/download/${encodeURIComponent(d.filename)}"></audio><a class="btn btn-outline btn-sm" href="${API}/download/${encodeURIComponent(d.filename)}" download>下载</a></div>`;
+  }catch(e){clearTimeout(animTimer);setStatus('err','生成失败: '+e.message);showToast('生成失败: '+e.message,'error');}
+  resetBtn();
+}
+function resetBtn(){const btn=document.getElementById('generate-btn');btn.disabled=false;btn.textContent='生成编排';}
+
+// ═════════════════════════════════════════
+var firstRender = true;
+loadVoices();loadExistingMusic();renderAll();
+</script>
+</body>
+</html>

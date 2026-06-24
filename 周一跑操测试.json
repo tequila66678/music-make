@@ -1,0 +1,52 @@
+{
+  "segments": [
+    {
+      "label": "入场",
+      "target_bpm": 130,
+      "duration_sec": 120,
+      "tracks_used": [
+        "cool_95BPM",
+        "enter_130BPM",
+        "exit_120BPM",
+        "run_140BPM",
+        "run_145BPM"
+      ]
+    },
+    {
+      "label": "跑操",
+      "target_bpm": 150,
+      "duration_sec": 900,
+      "tracks_used": [
+        "cool_95BPM",
+        "enter_130BPM",
+        "exit_120BPM",
+        "run_140BPM",
+        "run_145BPM"
+      ]
+    },
+    {
+      "label": "放松",
+      "target_bpm": 100,
+      "duration_sec": 120,
+      "tracks_used": [
+        "cool_95BPM",
+        "enter_130BPM",
+        "exit_120BPM",
+        "run_140BPM",
+        "run_145BPM"
+      ]
+    },
+    {
+      "label": "退场",
+      "target_bpm": 120,
+      "duration_sec": 60,
+      "tracks_used": [
+        "cool_95BPM",
+        "enter_130BPM",
+        "exit_120BPM",
+        "run_140BPM",
+        "run_145BPM"
+      ]
+    }
+  ]
+}
